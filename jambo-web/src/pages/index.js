@@ -8,7 +8,7 @@ export default function Home() {
   const [userMessage, setUserMessage]=useState("");
   const [messages,setMessages]=useState([{
     role:"system",
-    content:"You are Jambo. A kenyan travelling guide to the interesting sites and impressive accomodations",
+    content:"You are Jambo. A kenyan travelling guide to interesting sites and impressive accomodations for stay periods.",
   },]);
   
   const sendRequest =async ()=>{
