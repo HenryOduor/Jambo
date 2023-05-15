@@ -1,6 +1,7 @@
 import { useState } from "react"
 import Head from "next/head";
-import ReactMarkdown from `react-markdown`;
+import { createParser } from "eventsource-parser";
+import ReactMarkdown from "react-markdown";
 export default function Home() {
   const[apiKey,setApiKey]=useState("");
 
@@ -31,12 +32,44 @@ export default function Home() {
         body:JSON.stringify({
           model:"gpt-3.5-turbo",
           messages:updatedMessages,
+          stream:true,
         }),
       });
-      const resJson=await response.json();
-      console.log(resJson);
-      const updatedMessages2 = [...updatedMessages, resJson.choices[0].message];
-      setMessages(updatedMessages2);
+      const reader = response.body.getReader();
+
+      let newMessage = "";
+      const parser = createParser((event) => {
+        if (event.type === "event") {
+          const data = event.data;
+          if (data === "[DONE]") {
+            return;
+          }
+          const json = JSON.parse(event.data);
+          const content = json.choices[0].delta.content;
+
+          if (!content) {
+            return;
+          }
+
+          newMessage += content;
+
+          const updatedMessages2 = [
+            ...updatedMessages,
+            { role: "assistant", content: newMessage },
+          ];
+
+          setMessages(updatedMessages2);
+        } else {
+          return "";
+        }
+      });
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = new TextDecoder().decode(value);
+        parser.feed(text);
+      }
     }
       catch (error) {
         console.error("error");
@@ -66,7 +99,7 @@ export default function Home() {
             {messages.filter((msg) => msg.role !== "system").map((msg, idx) => (
                 <div key={idx} className="mt-3">
                   <div className="font-bold">
-                    {msg.role === "user" ? "You" : "Jobot"}
+                    {msg.role === "user" ? "You" : "Jambo"}
                   </div>
                   <div className="prose-lg">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -79,7 +112,7 @@ export default function Home() {
           <textarea
             className="border rounded-md text-lg p-2 flex-1"
             rows={1}
-            placeholder="Ask me anything..."
+            placeholder="Feel free to ask me about tour destinations in Kenya..."
             value={userMessage}
             onChange={(e) => setUserMessage(e.target.value)}
           />
